@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 S3_MODEL_URI = os.environ["S3_MODEL_URI"] 
-pyfunc_model = mlflow.pyfunc.load_model(S3_MODEL_URI)
+pyfunc_model = mlflow.pyfunc.load_model(S3_MODEL_URI) # import model at startup
 
 CLASSES = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
