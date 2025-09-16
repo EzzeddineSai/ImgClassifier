@@ -9,8 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 S3_MODEL_URI = os.environ["S3_MODEL_URI"] 
-
-pyfunc_model = None
+pyfunc_model = mlflow.pyfunc.load_model(S3_MODEL_URI)
 
 CLASSES = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
@@ -18,8 +17,6 @@ CLASSES = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'hors
 async def lifespan(app: FastAPI):
     global pyfunc_model 
     print("Application is starting up...")
-    pyfunc_model = mlflow.pyfunc.load_model(S3_MODEL_URI)
-    print("Download complete. S3_MODEL_URI:", S3_MODEL_URI)
 
     yield # app runs here
 
@@ -35,8 +32,8 @@ app.add_middleware(
     allow_headers=["*"],        # allow all headers
 )
 
-def transform_PIL_image(img):
-  img = img.resize((32,32))
+def transform_PIL_image(img): # make this async
+  assert img.size == (32, 32), "Image size must be 32x32"
   img_data = np.array(img).astype(np.float32)  # shape (H, W, C)
   img_data = np.transpose(img_data, (2, 0, 1))   # change shape to (C, H, W) based on model expectation
   img_data /= 255.0 # normalize
