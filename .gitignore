@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 run_docker.sh
+test_lambda.sh
 models/
 mlruns/
 

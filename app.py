@@ -5,11 +5,24 @@ import io
 from PIL import Image
 import numpy as np
 from mlflow import pyfunc
+import logging
 
+logging.basicConfig(
+    level=logging.INFO,  # capture INFO and above
+    format="[%(levelname)s] %(asctime)s %(message)s"
+)
+
+CLASSES = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 S3_MODEL_URI = os.environ["S3_MODEL_URI"] 
 pyfunc_model = pyfunc.load_model(S3_MODEL_URI) # import model at startup
 
-CLASSES = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+test_img = np.zeros((1, 3, 32, 32), dtype=np.float32) # dummy data to test model load
+test_output = pyfunc_model.predict(test_img)
+
+if 'logits' not in test_output:
+    raise ValueError("Model did not load correctly, no 'logits' in output") 
+
+logging.info("Model loaded successfully")
 
 def make_app():
     app = FastAPI()
@@ -24,13 +37,14 @@ def make_app():
 
     def transform_PIL_image(img):
         assert img.size == (32, 32), "Image size must be 32x32"
+
         img_data = np.array(img).astype(np.float32)  # shape (H, W, C)
         img_data = np.transpose(img_data, (2, 0, 1))   # change shape to (C, H, W) based on model expectation
         img_data /= 255.0 # normalize
         img_data = np.expand_dims(img_data, axis=0) # fit into a single batch tensor for inference
         return img_data
 
-    @app.post("/uploadfile/")
+    @app.post("/uploadfile")
     async def create_upload_file(file: UploadFile = File(...)):
         global pyfunc_model, CLASSES
         f = await file.read()
@@ -53,8 +67,9 @@ app = make_app()
 
 if __name__ == "__main__": # for development only
     import uvicorn
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True) # reload for dev only
+    uvicorn.run("app:app", host="0.0.0.0", port=8000) # reload for dev only
 
 else:
     from mangum import Mangum
-    handler = Mangum(app) # for AWS Lambda deployment
+    handler = Mangum(app, lifespan="off") # for AWS Lambda deployment
+    
